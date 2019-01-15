@@ -3,12 +3,18 @@
 
 # Part_3_Feature_Engineering.R
 
+# Feature engineering = all the things you do to your data before fitting the model. 
+
 # Slide 2 --------------------------------------------------------
 
 library(tidymodels)
 theme_set(theme_bw())
 
 # Slide 3 --------------------------------------------------------
+
+# one-hot encoding in recipes package for ML purposes. otherwise dummy variables are in C-1. eg below
+
+model.matrix(Sepal.Length ~ Species, data = iris)
 
 # Previously...
 
@@ -59,6 +65,59 @@ mod_rec_trained
 
 ames_test_dummies <- bake(mod_rec_trained, new_data = ames_test)
 names(ames_test_dummies)
+
+# with zero variance filter 
+mod_rec2 <- recipe(
+  Sale_Price ~ Longitude + Latitude + Neighborhood, 
+  data = ames_train
+) %>%
+  step_log(Sale_Price, base = 10) %>%
+  
+  # Lump factor levels that occur in 
+  # <= 5% of data as "other"
+  step_zv(all_predictors()) %>%
+  
+  # Create dummy variables for _any_ factor variables
+  step_dummy(all_nominal())
+mod_rec_trained2 <- prep(mod_rec2, training = ames_train, verbose = TRUE)
+
+ames_test_dummies2 <- bake(mod_rec_trained2, new_data = ames_test)
+names(ames_test_dummies2)
+
+# near zero variance filter
+mod_rec3 <- recipe(
+  Sale_Price ~ Longitude + Latitude + Neighborhood, 
+  data = ames_train
+) %>%
+  step_log(Sale_Price, base = 10) %>%
+  
+  # Lump factor levels that occur in 
+  # <= 5% of data as "other"
+  step_nzv(all_predictors()) %>%
+  
+  # Create dummy variables for _any_ factor variables
+  step_dummy(all_nominal())
+mod_rec_trained3 <- prep(mod_rec3, training = ames_train, verbose = TRUE)
+
+ames_test_dummies3 <- bake(mod_rec_trained3, new_data = ames_test)
+  
+## max's solution 
+mod_rec <- recipe(
+  Sale_Price ~ Longitude + Latitude + Neighborhood, 
+  data = ames_train
+) %>%
+  step_log(Sale_Price, base = 10) %>%
+  
+  # Lump factor levels that occur in 
+  # <= 5% of data as "other"
+ # step_other(Neighborhood, threshold = 0.05) %>%
+  
+  # Create dummy variables for _any_ factor variables
+  step_dummy(all_nominal()) %>% 
+  #step_nzv(starts_with("Neighborhood_")) %>% 
+  step_nzv(all_predictors()) %>% 
+  prep(training = ames_train) 
+
 
 # Make the example data using data from caret --------------------
 
@@ -138,7 +197,7 @@ ggplot(
     aes(x = Year_Built, y = Sale_Price)
   ) + 
   geom_point(alpha = 0.4) +
-  scale_x_log10() + 
+  #scale_x_log10() + 
   scale_y_continuous(
     breaks = price_breaks, 
     trans = "log10"
@@ -176,11 +235,14 @@ anova(mod1, mod2)
 recipe(Sale_Price ~ Year_Built + Central_Air, data = ames_train) %>%
   step_log(Sale_Price) %>%
   step_dummy(Central_Air) %>%
+  # NOTE the TILDE!!!
   step_interact(~ starts_with("Central_Air"):Year_Built) %>%
   prep(training = ames_train) %>%
   juice() %>%
   # select a few rows with different values
   slice(153:157)
+
+# ----- END OF DAY ONE ----------- # 
 
 # Slide 37 -------------------------------------------------------
 lin_terms <- recipe(Sale_Price ~ Bldg_Type + Neighborhood + Year_Built + 

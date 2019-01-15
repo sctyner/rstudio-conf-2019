@@ -120,3 +120,11 @@ tidy way to call models: gets you the formula interface for functions that don't
 resample training data into several different sets of "analysis" and "assessment" sets. 
 
 **V-fold cross validation**: no data point is used twice in an assessment set. Can also do repeated V-fold cross validation. Drive down variation in resampling 
+
+# Part 3: Feature engineering 
+
+PCA example: bivariate, 2 class classification. 
+
+two variables that are highly correlated and right-skewed. Use box-cox transforms on them. 
+
+PCA is like projecting shadows: want to make the shadows as far apart as possible. e.g. if people are standing in a line, the shadows will be most spread out when light is perpendicular to the line instead of directly in front of the line. 
