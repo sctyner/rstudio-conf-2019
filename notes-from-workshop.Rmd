@@ -1,0 +1,122 @@
+---
+title: "Applied Machine Learning Workshop Notes"
+author: "Taught by Max Kuhn and others"
+date: "2019-01-15"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intro
+
+The goal is for you to easily build predictive / machine learning models in R using a variety of packages and model types. 
+
+- What is a "model focused on prediction"? Mostly focus on prediction, not inference. 
+- What is "machine learning"? Classification is qualitative, regression is quantitative. 
+
+### Why R? 
+
+R has cutting edge models, it is easly to link other applications (`tensorflow`, `python`, `keras`, etc.), it's built by people who do data analysis. 
+
+### Why not R? 
+
+R is for data analysis. It's not C or Java. It's memory-bound. The interface can be inconsistent. 
+
+## `purrr`
+
+```map(
+  by_alley, 
+  ~summarise(.x, max_price = max(Sale_Price))
+)
+```
+
+instead of 
+
+```
+map(
+  by_alley, 
+  function(x) summarise(x, max_price = max(Sale_Price))
+)
+```
+
+Use !! and !!! for quasiquotation. (Double-bang, and triple-bang)
+
+!! for foo(x) and !!! for bar(...).
+
+# First Activity
+
+Take 10-15 minutes and explore the data. 
+
+```{r}
+library(AmesHousing)
+ames <- make_ames()
+
+ames %>% 
+  ggplot(aes(x = Year_Built, y = Sale_Price/1000)) +  
+  geom_point() + 
+  geom_smooth() 
+
+ames %>% 
+  mutate(totalSF = First_Flr_SF + Second_Flr_SF + Low_Qual_Fin_SF + Total_Bsmt_SF) %>% 
+  ggplot(aes(x = totalSF, y = Sale_Price/1000, color = Sale_Condition)) + 
+  geom_point(alpha = .6)
+  
+```
+
+
+What other people did:
+
+```{r}
+theme_set(theme_bw())
+ames %>% group_by(Pool_QC) %>% 
+  count()
+
+ames %>% group_by(Overall_Qual, Overall_Cond) %>% count()
+
+table(ames$Overall_Cond, ames$Overall_Qual)
+
+ggplot(ames, aes(x = reorder(Neighborhood, Sale_Price), y = Sale_Price)) + 
+  geom_violin() + 
+  scale_y_log10() + 
+  coord_flip()
+
+ames %>% 
+  group_by(Neighborhood) %>% 
+  count() %>% 
+  ggplot(aes(x = Neighborhood, y = n)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip()
+  
+  
+```
+`Pool_QC` his is a "near zero variance predictor". Filter it out. Not worth the trouble. 
+
+Factor: Here, keep data as factors because of dummy variables. 
+
+# Part 2 : Basic principles 
+
+Feature engineering: taking data you do have so that the model doesn't need to spend time parsing it. Very subjective for the data an the problem. 
+
+After finding a coupe of good models, do some more EDA, quant. analysis. Then spend more time with the good models. And finally tune the final model. 
+
+The very last red bar is the model fit shown to you in the textbook. 
+
+Data spending: how do we "spend" the data to get the best model? 
+
+Split into training and testing. Then resample the training data. But want o avoid circular use of the data. ie fit model with data, use data to evaluate model, then tune model, retest, etc.  
+
+"I want R to work for me, I don't want to work for R." 
+
+## parsnip package 
+
+tidy way to call models: gets you the formula interface for functions that don't actually have it. 
+
+### training data 
+
+resample training data into several different sets of "analysis" and "assessment" sets. 
+
+**V-fold cross validation**: no data point is used twice in an assessment set. Can also do repeated V-fold cross validation. Drive down variation in resampling 

@@ -19,12 +19,15 @@ nrow(ames)
 
 # Make sure that you get the same random numbers
 set.seed(4595)
+# initial_split is in the rsample package. 
 data_split <- initial_split(ames, strata = "Sale_Price")
-
+# training and testing functions are also in rsample package 
 ames_train <- training(data_split)
 ames_test  <- testing(data_split)
 
 nrow(ames_train)/nrow(ames)
+
+rm(data_split)
 
 # Slide 12 -------------------------------------------------------
 
@@ -63,6 +66,24 @@ simple_lm <- lm(log10(Sale_Price) ~ Longitude + Latitude, data = ames_train)
 
 simple_lm_values <- augment(simple_lm)
 names(simple_lm_values)
+simple_lm_values %>% head
+
+summary(simple_lm)
+
+simple_lm_values %>% 
+  ggplot(aes(x = log10.Sale_Price., y = .fitted)) + 
+  geom_point() + 
+  geom_abline(color = 'red')
+
+devtools::install_github("goodekat/ggResidpanel")
+library(ggResidpanel)
+resid_panel(simple_lm, plots = "all", bins = 20)
+
+ggplot(simple_lm_values) +
+  geom_point(aes(x = Longitude, y = .resid), alpha = .5) 
+
+ggplot(simple_lm_values) +
+  geom_point(aes(x = .hat, y = .resid), alpha = .5) 
 
 # Slide 21 -------------------------------------------------------
 
@@ -122,6 +143,7 @@ summary(fit_lm$fit)
 # Slide 34 -------------------------------------------------------
 
 set.seed(2453)
+# vfold cv is in the rsample package
 cv_splits <- vfold_cv(
   data = ames_train, 
   v = 10, 
@@ -130,6 +152,7 @@ cv_splits <- vfold_cv(
 cv_splits %>% slice(1:6)
 
 cv_splits$splits[[1]]
+
 
 cv_splits$splits[[1]] %>% analysis() %>% dim()
 cv_splits$splits[[1]] %>% assessment() %>% dim()
@@ -154,6 +177,8 @@ cv_splits <- cv_splits %>%
 cv_splits
 
 # Slide 36 -------------------------------------------------------
+
+# Question: how many "helper" functions could be generalized to fit in the R package? 
 
 compute_pred <- function(split, model) {
   
@@ -211,6 +236,23 @@ holdout_results <-
 holdout_results %>% dim()
 ames_train %>% dim()
 
+names(holdout_results)
+glimpse(holdout_results)
+
+
+# gather all predictors 
+
+holdout_results %>% select_if(is.numeric) %>% 
+  gather(predictor, value, Lot_Frontage:Sale_Price_Log) %>% 
+  ggplot(aes(x = value, y = .resid))+ 
+  geom_point(alpha = .5) + 
+  geom_smooth(se = F) + 
+  facet_wrap(~predictor, scales = "free_x")
+
+
+ggplot(holdout_results, aes(x = Full_))
+
+
 # Slide 45 -------------------------------------------------------
 
 spec_knn <- nearest_neighbor(neighbors = 2) %>%
@@ -232,7 +274,8 @@ repredicted <- fit_knn %>%
 
 repredicted
 
-# The ruckus is here!
+# The ruckus is here! 
+# rsq() is in the yardstick package
 repredicted %>% 
   rsq(
     truth = Sale_Price_Log, 
@@ -328,6 +371,7 @@ spec_knn_varying <- nearest_neighbor(
 param_grid <- 
   param_grid %>%
   mutate(
+    # merge is the dials::merge.model_spec
     specs = merge(., spec_knn_varying)
   )
 
@@ -338,6 +382,7 @@ param_grid$specs[[20]]
 # Slide 58 -------------------------------------------------------
 
 fit_one_spec_one_split <- function(spec, split) {
+  # these are functions we wrote earlier
   mod <- fit_model(split, spec)
   pred_df <- compute_pred(split, mod)
   perf_df <- compute_perf(pred_df)
