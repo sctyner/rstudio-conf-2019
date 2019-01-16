@@ -284,6 +284,7 @@ ggplot(ames_train,
 
 # Slide 40 -------------------------------------------------------
 
+# prepper is the same as prep for cross validation 
 cv_splits <- cv_splits %>% 
   mutate(nonlin_terms = map(splits, prepper, recipe = nonlin_terms))
 
@@ -302,15 +303,23 @@ cv_splits <- cv_splits %>%
     lm_fit_rec, 
     Sale_Price ~ .)
   )
+head(cv_splits)
+juice(cv_splits$nonlin_terms[[1]])
 
 glance(cv_splits$models[[1]]$fit)
 
+
+cv_splits$models[[1]]
 # Slide 42 -------------------------------------------------------
 
+# bake on the ASSESSMENT set. 
+
 assess_predictions <- function(split, recipe, model) {
+  # get assessment sets
   raw_assessment <- assessment(split)
+  # "bake" the assessment set 
   processed <- bake(recipe, new_data = raw_assessment)
-  
+  # predict on the assessment set and get resid. 
   model %>%
     predict(new_data = processed) %>%
     bind_cols(processed) %>%
@@ -323,6 +332,8 @@ assess_predictions <- function(split, recipe, model) {
 }
 
 # Slide 43 -------------------------------------------------------
+
+# applying the above. 
 
 cv_splits <- cv_splits %>%
   mutate(
@@ -339,6 +350,9 @@ cv_splits <- cv_splits %>%
 # Slide 44 -------------------------------------------------------
 
 # Compute the summary statistics
+
+# metrics function is from the yardstick package
+
 cv_splits %>%
   unnest(pred) %>%
   group_by(id) %>%

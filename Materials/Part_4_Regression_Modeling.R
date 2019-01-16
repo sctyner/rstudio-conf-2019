@@ -32,6 +32,35 @@ car_test <-
   dplyr::filter(!(fuel_type %in% removals)) %>%
   mutate(fuel_type = relevel(fuel_type, "Gasoline_or_natural_gas"))
 
+## Slide 7 "your turn" 
+
+car_train %>% 
+  select_if(is.numeric) %>% 
+  gather(predictor, value, 
+         cylinders:super_charged) %>% 
+  ggplot(aes(x = value, y = mpg))+ 
+  geom_point(alpha = .5) + 
+  geom_smooth(se = F) + 
+  facet_wrap(~predictor, scales = "free_x")
+
+
+car_train %>% 
+  summarize_all(function(x) length(unique(x))) %>% 
+  gather(variable, value) %>% data.frame()
+
+
+car_train %>% 
+  select_if(is.integer) %>% 
+  mutate_all(as.factor) %>% 
+  mutate(mpg = car_train$mpg) %>% 
+  gather(predictor, value, 
+         hatch_lug_vol:year) %>% 
+  ggplot(aes(x = value, y = mpg))+ 
+  geom_boxplot(alpha = .5) + 
+  #geom_smooth(se = F) + 
+  facet_wrap(~predictor, scales = "free_x")
+
+
 # Slide 9 --------------------------------------------------------
 
 ## library(splines)
@@ -47,12 +76,17 @@ car_train %>%
 
 # Slide 10 -------------------------------------------------------
 
+# every column has a role. 
+
 basic_rec <- recipe(mpg ~ ., data = car_train) %>%
   # keep the car name but don't use as a predictor
   update_role(model, new_role = "model") %>%
   # collapse some makes into "other"
   step_other(make, car_class, threshold = 0.005) %>%
+  # 
   step_other(fuel_type, threshold = 0.01) %>%
+  # all nominal , if character or factor then take it and 
+  # Question: what about ordinal factors? 
   step_dummy(all_nominal(), -model) %>%
   step_zv(all_predictors())
 # Slide 15 -------------------------------------------------------
@@ -88,6 +122,7 @@ glmn_mod <- train(
   trControl = ctrl,
   tuneGrid = glmn_grid
   )
+
 
 # Slide 21 -------------------------------------------------------
 
@@ -188,11 +223,13 @@ resid_plot(glmn_mod, car_train)
 # Slide 26 -------------------------------------------------------
 
 reg_imp <- varImp(glmn_mod, scale = FALSE)
-ggplot(reg_imp, top = 30) + xlab("")
+ggplot(reg_imp, top = 10) + xlab("")
 
 # Slide 28 -------------------------------------------------------
 ## library(glmnet)
 ## plot(glmn_mod$finalModel, xvar = "lambda")
+
+## predict using caret object NOT glmnet object
 
 # Slide 29/30 ----------------------------------------------------
 
@@ -238,15 +275,26 @@ mars_mod <- train(
   trControl = ctrl
 )
 
+# tidypredict package 
+
 # Parallel Processing Code ---------------------------------------
 
 parallel::detectCores()
 
-# library(doParallel)
-# cl <- makePSOCKcluster(parallel::detectCores() - 2)
-# registerDoParallel(cl)
-
-
+library(doParallel)
+cl <- makePSOCKcluster(parallel::detectCores() - 2)
+registerDoParallel(cl)
+p <- Sys.time()
+set.seed(92598)
+mars_mod <- train(
+  basic_rec, 
+  data = car_train,
+  method = "earth",
+  tuneGrid = mars_grid,
+  trControl = ctrl
+)
+Sys.time() - p
+stopCluster(cl)
 # Slide 46 -------------------------------------------------------
 
 ggplot(mars_mod) + theme(legend.position = "top")
@@ -282,6 +330,9 @@ mars_gcv_mod <- train(
   trControl = ctrl
 )
 mars_gcv_mod$finalModel
+mars_gcv_mod$times
+
+# Question : Lime or MARS for explainable models? 
 
 # Slide 52 -------------------------------------------------------
 
@@ -326,6 +377,9 @@ rs$values %>%
   theme(legend.position = "none") + 
   xlab("")
 
+# RMSE_ij where i is cv id and j is model id 
+# error ~ model + (1|resample)
+
 # Slide 64 -------------------------------------------------------
 
 library(tidyposterior)
@@ -339,6 +393,7 @@ summary(posteriors)
 ggplot(posteriors) + coord_flip()
 
 # Slide 66 -------------------------------------------------------
+# contrast_models is in the tidyposterior package 
 
 differences <-
   contrast_models(
