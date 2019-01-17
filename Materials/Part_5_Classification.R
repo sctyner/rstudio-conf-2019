@@ -34,7 +34,7 @@ autoplot(roc_obj) + thm
 
 # Slide 13 --------------------------------------------------------
 
-load("Data/okc.RData")
+load("Materials/Data/okc.RData")
 okc_train %>% dim()
 okc_test %>% nrow()
 table(okc_train$Class)
@@ -129,6 +129,8 @@ ctrl <- trainControl(
 
 # Slide 25 --------------------------------------------------------
 
+# Don't want dummy variables. (Still not clear why...) so have to use the xy method of data instead of formula method
+
 set.seed(5515)
 cart_mod <- train(
 	x = okc_train[, names(okc_train) != "Class"], 
@@ -163,6 +165,56 @@ approx_roc_curve(cart_mod, "CART") %>%
 # Slide 29 --------------------------------------------------------
 
 confusionMatrix(cart_mod)
+
+
+# hands on
+
+set.seed(5515)
+cart_mod_form <- train(
+ Class ~ . , data = okc_train,
+  method = "rpart2",
+  metric = "ROC",
+  tuneGrid = data.frame(maxdepth = 1:20),
+  trControl = ctrl
+)
+# max depth = 8 
+cart_mod_form$results
+# AUC  = .721
+# max depth  = 11
+cart_mod$results
+# AUC = .695
+
+formulameth <- cart_mod_form$results
+nonformula <- cart_mod$results
+
+formulameth$meth <- "formula"
+nonformula$meth <- "xy"
+
+both <- bind_rows(formulameth, nonformula)
+
+head(both) 
+
+
+both %>% 
+  gather(metric, value, ROC:Spec) %>% 
+  ggplot() +
+  geom_line(aes(x = maxdepth, y = value, color = meth))  + 
+  facet_wrap(~metric)
+
+
+
+
+approx_roc_curve(cart_mod_form, "CART") %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity)) +
+  geom_path()  +
+  geom_abline(col = "red", alpha = .5)
+
+ggplot(cart_mod_form)
+
+cart_mod$finalModel$splits
+
+cart_mod$finalModel$tuneValue
+
 
 # Slide 30 --------------------------------------------------------
 
@@ -201,6 +253,8 @@ ggplot(all_curves) +
       group = model, col = model) +
   geom_path()  +
   geom_abline(col = "red", alpha = .5)
+
+# caret uses ipred::bagging() for bagging 
 
 # Slide 42 --------------------------------------------------------
 

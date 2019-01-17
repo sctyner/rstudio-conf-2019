@@ -57,7 +57,7 @@ dummies <-
 
 # For parallel processing
 # or plan("sequential")
-# plan("multicore") # non-windows implementation 
+ plan("multicore") # non-windows implementation 
 
 set.seed(9798)
 okc_splits <- 
@@ -128,8 +128,8 @@ okc_tr_res <-
   okc_tr_res %>%
   mutate(
     in_eq_zone = 
-      fold_above > 10 &
-      (.pred_stem > 0.45 | .pred_stem < 0.55),
+      fold_above > 10 |
+      (.pred_stem > 0.45 & .pred_stem < 0.55),
     new_pred  = 
       class_pred(.pred_class, which = which(in_eq_zone))
   )
@@ -142,7 +142,7 @@ okc_tr_res %>% pull(new_pred) %>% levels()
 okc_tr_res %>% slice(1:6) %>% pull(new_pred) %>% as.factor()
 
 #  Slide 17 ------------------------------------------------------
-
+# pull is from dplyr. it just pulls out one variable 
 okc_tr_res %>% slice(1:5) %>% pull(new_pred)
 
 okc_tr_res %>%
@@ -150,6 +150,7 @@ okc_tr_res %>%
 
 okc_tr_res %>%
   mutate(new_pred = as.factor(new_pred)) %>%
+  # kap is from yardstick package 
   kap(Class, new_pred)
 
 
